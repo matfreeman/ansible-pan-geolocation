@@ -1,5 +1,5 @@
 # ansible-pan-geolocation
-Updates a list of PAN devices with the geolocation (latitude and longitude coordidates). Partial changes for the specified username are commited after applying the configuration.
+Updates a list of PAN devices with the geolocation settings. Partial configuration changes for the specified username are commited after applying.
 
 ## Device settings
 Firewall credentials and HTTP settings are defined in firewall-secrets.yml
