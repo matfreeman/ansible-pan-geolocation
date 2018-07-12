@@ -51,10 +51,6 @@
       timeout: "{{ timeout }}"
     register: api_resp
 
-  - name: Debug
-    debug:
-      var: api_resp.content
-
   - name: Set the system device configuration - longitude
     uri:
       url: "https://{{ip_address}}/api/?type=config&action=set&xpath=/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/geo-location&element=<longitude>{{longitude}}</longitude>&key={{api_key}}"
