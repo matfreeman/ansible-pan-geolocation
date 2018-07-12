@@ -1,0 +1,83 @@
+- name: Connect to PAN devices via XML API and update the geolocation system settings
+  hosts: all
+  connection: local
+  gather_facts: False
+
+  tasks:
+  - include_vars: 'firewall-secrets.yml'
+    no_log: 'yes'
+
+  # get and set the xml api key.
+  - name: Get PAN api key
+    uri:
+      url: "https://{{ip_address}}/api/?type=keygen&user={{username}}&password={{password}}"
+      ip_address: "{{ ip_address }}"
+      method: GET
+      validate_certs: "{{ validate_certs }}"
+      status_code: -1, 200, 403
+      return_content: yes
+      timeout: "{{ timeout }}"
+    register: api_resp
+
+  # abort for any errors retrieving api key. 
+  - name: Abort on connection error
+    fail: msg="Could not connect to device {{ ip_address }}"
+    when: "api_resp.status == -1"
+
+  - name: Abort on api key error
+    fail: msg="Invalid credentials."
+    when: "api_resp.status == 403"
+
+  - name: Parse XML for api key
+    xml:
+      xmlstring: "{{ api_resp.content }}"
+      xpath: "/response/result/key"
+      content: text
+    register: xml_resp
+
+  - name: Set api key for further requests
+    set_fact:
+      api_key: "{{ xml_resp.matches[0].key }}"
+  
+  # run api commands on the device.
+  - name: Set the system device configuration - latitude
+    uri:
+      url: "https://{{ip_address}}/api/?type=config&action=set&xpath=/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/geo-location&element=<latitude>{{latitude}}</latitude>&key={{api_key}}"
+      ip_address: "{{ ip_address }}"
+      method: POST
+      validate_certs: "{{ validate_certs }}"
+      status_code: 200
+      return_content: yes
+      timeout: "{{ timeout }}"
+    register: api_resp
+
+  - name: Debug
+    debug:
+      var: api_resp.content
+
+  - name: Set the system device configuration - longitude
+    uri:
+      url: "https://{{ip_address}}/api/?type=config&action=set&xpath=/config/devices/entry[@name='localhost.localdomain']/deviceconfig/system/geo-location&element=<longitude>{{longitude}}</longitude>&key={{api_key}}"
+      ip_address: "{{ ip_address }}"
+      method: POST
+      validate_certs: "{{ validate_certs }}"
+      status_code: 200
+      return_content: yes
+      timeout: "{{ timeout }}"
+    register: api_resp
+
+  # commit partial changes.
+  - name: Commit partial changes
+    uri:
+      url: "https://{{ip_address}}/api/?type=commit&cmd=<commit><partial><admin><member>{{username}}</member></admin></partial></commit>&key={{api_key}}"
+      ip_address: "{{ ip_address }}"
+      method: GET
+      validate_certs: "{{ validate_certs }}"
+      status_code: 200
+      return_content: yes
+      timeout: "{{ timeout }}"
+    register: commit_resp
+
+  - name: Debug
+    debug:
+      var: commit_resp.content
